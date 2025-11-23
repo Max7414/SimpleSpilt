@@ -45,6 +45,7 @@
             <button type="submit" class="primary">登入並取得 JWT</button>
             <button type="button" class="primary ghost" @click="register">註冊並登入</button>
           </div>
+          <p v-if="lastError" class="muted tight">錯誤：{{ lastError }}</p>
           <p class="muted tight">註冊/登入均呼叫後端簽章，需設定 JWT_SECRET。</p>
         </form>
         <div class="auth-note">

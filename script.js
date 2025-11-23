@@ -9,6 +9,7 @@ createApp({
         email: localStorage.getItem('simpleSplitEmail') || '',
         password: '',
       },
+      lastError: '',
       quickAddEnabled: true,
       splitFeatureEnabled: true,
       aaChecked: true,
@@ -48,7 +49,7 @@ createApp({
       return value !== null ? value.toFixed(2) : '';
     },
     totalFriendOwes() {
-      const total = this.entries.reduce((acc, entry) => acc + entry.friendOwes, 0);
+      const total = this.entries.reduce((acc, entry) => acc + Number(entry.friendOwes || 0), 0);
       return total.toFixed(2);
     },
     aaUsageRate() {
@@ -66,7 +67,9 @@ createApp({
       try {
         await this.authenticate('/api/login');
       } catch (err) {
-        alert('登入失敗，請稍後再試。');
+        const msg = err.message || '登入失敗，請稍後再試。';
+        this.lastError = msg;
+        alert(msg);
         console.error(err);
       }
     },
@@ -79,7 +82,9 @@ createApp({
         await this.authenticate('/api/register');
         await this.loadEntries();
       } catch (err) {
-        alert('註冊失敗，請稍後再試。');
+        const msg = err.message || '註冊失敗，請稍後再試。';
+        this.lastError = msg;
+        alert(msg);
         console.error(err);
       }
     },
@@ -99,6 +104,7 @@ createApp({
       localStorage.setItem('simpleSplitToken', this.token);
       localStorage.setItem('simpleSplitEmail', this.userEmail);
       this.auth.password = '';
+      this.lastError = '';
       await this.loadEntries();
     },
     logout() {
@@ -184,10 +190,10 @@ createApp({
         this.entries = (data.entries || []).map((row) => ({
           id: row.id,
           item: row.item,
-          total: Number(row.total).toFixed(2),
+          total: Number(row.total),
           participants: row.participants,
-          perPerson: Number(row.per_person).toFixed(2),
-          friendOwes: Number(row.friend_owes).toFixed(2),
+          perPerson: Number(row.per_person),
+          friendOwes: Number(row.friend_owes),
           aa: !!row.aa,
         }));
         this.aaUsageCount = this.entries.filter((e) => e.aa).length;
@@ -210,10 +216,10 @@ createApp({
       return {
         id: row.id,
         item: row.item,
-        total: Number(row.total).toFixed(2),
+        total: Number(row.total),
         participants: row.participants,
-        perPerson: Number(row.per_person).toFixed(2),
-        friendOwes: Number(row.friend_owes).toFixed(2),
+        perPerson: Number(row.per_person),
+        friendOwes: Number(row.friend_owes),
         aa: !!row.aa,
       };
     },
