@@ -127,7 +127,7 @@ createApp({
       this.aaChecked = true;
       this.addEntry();
     },
-    addEntry() {
+    async addEntry() {
       if (!this.isAuthed) {
         alert('請先登入後使用分帳功能。');
         return;
