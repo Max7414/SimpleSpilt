@@ -1,0 +1,43 @@
+name: SimpleSplit CI/CD & Security Scan
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-secure:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+
+    # SCA 步驟 1: 安裝依賴 (會產生 package-lock.json)
+    - name: Install Dependencies
+      run: npm install
+
+    # SCA 步驟 2: 執行軟體成分分析 (SCA)
+    # 如果有嚴重漏洞，此步驟會失敗，阻止部署
+    - name: Run SCA (npm audit)
+      run: npm audit --audit-level=high
+
+    # Secret Management 步驟: 注入機密到 .env
+    # 這證明了我們沒有把密碼寫在程式碼裡
+    - name: Inject Secrets to .env
+      run: |
+        echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+        echo "DB_API_KEY=${{ secrets.DB_API_KEY }}" >> .env
+        echo "Secrets injected successfully!"
+      env:
+        JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        DB_API_KEY: ${{ secrets.DB_API_KEY }}
+
+    - name: Build Project (Simulation)
+      run: npm run build

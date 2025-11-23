@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SimpleSplit</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js" defer></script>
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <div id="app" class="page">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">SimpleSplit · 不囉嗦分帳</p>
+        <h1>兩步記帳，朋友平分</h1>
+        <p class="lede">
+          核心情境：一人先付，大家平分。切換功能開關，立即對照「舊版 vs 新版」的差異。
+        </p>
+        <div class="chip-row">
+          <span class="chip">Toggle 1 · Quick Add</span>
+          <span class="chip">Toggle 2 · One-Click Split</span>
+          <span class="chip">Tech · Vue 3 + Vercel</span>
+        </div>
+      </div>
+      <div class="stat">
+        <p class="stat-label">假設驗證</p>
+        <p class="stat-value">10s → 3s</p>
+        <p class="stat-detail">預設標籤縮短記帳時間</p>
+      </div>
+    </header>
+
+    <section class="panel toggles">
+      <div class="panel-head">
+        <div>
+          <p class="eyebrow">Feature Toggles</p>
+          <h2>開關切換，快速對照體驗差異</h2>
+        </div>
+        <div class="legend">
+          <span class="pill on">ON 新版</span>
+          <span class="pill off">OFF 舊版</span>
+        </div>
+      </div>
+      <div class="toggle-row">
+        <label class="switch">
+          <input type="checkbox" v-model="quickAddEnabled" />
+          <span class="slider"></span>
+        </label>
+        <div>
+          <p class="toggle-title">Quick Add · 預設標籤</p>
+          <p class="toggle-desc">
+            ON：直接點擊「午餐 $100」、「手搖 $50」。OFF：只能手動輸入品項與金額。
+          </p>
+        </div>
+        <div class="status" :class="quickAddEnabled ? 'on' : 'off'">
+          {{ quickAddEnabled ? 'ON' : 'OFF' }}
+        </div>
+      </div>
+      <div class="toggle-row">
+        <label class="switch">
+          <input type="checkbox" v-model="splitFeatureEnabled" />
+          <span class="slider"></span>
+        </label>
+        <div>
+          <p class="toggle-title">One-Click Split · AA 制核取</p>
+          <p class="toggle-desc">
+            ON：顯示「AA制」核取方塊，勾選自動平分。OFF：使用者需自行輸入每人金額。
+          </p>
+        </div>
+        <div class="status" :class="splitFeatureEnabled ? 'on' : 'off'">
+          {{ splitFeatureEnabled ? 'ON' : 'OFF' }}
+        </div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <div class="panel-head">
+          <p class="eyebrow">快速記帳</p>
+          <h2>1) 選標籤或輸入</h2>
+          <p class="muted">填寫者視為「我」，其餘為朋友，預設兩人平分。</p>
+        </div>
+
+        <div v-if="quickAddEnabled" class="preset-row">
+          <button v-for="preset in quickPresets" :key="preset.label" class="preset" @click="usePreset(preset)">
+            <span>{{ preset.emoji }} {{ preset.label }}</span>
+            <strong>${{ preset.amount }}</strong>
+          </button>
+        </div>
+
+        <form class="form" @submit.prevent="addEntry">
+          <label class="field">
+            <span>項目名稱</span>
+            <input type="text" v-model.trim="form.item" :placeholder="quickAddEnabled ? '客製或覆寫預設標籤' : '午餐 / 飲料'" required />
+          </label>
+          <label class="field">
+            <span>總金額 (我先付)</span>
+            <input type="number" min="0" step="0.01" v-model.number="form.total" placeholder="100" required />
+          </label>
+          <label class="field">
+            <span>人數 (含我)</span>
+            <input type="number" min="2" step="1" v-model.number="form.participants" />
+          </label>
+
+          <div class="split-block">
+            <div class="split-head">
+              <p class="eyebrow">分帳方式</p>
+              <div v-if="splitFeatureEnabled" class="aa-option">
+                <input type="checkbox" id="aa" v-model="aaChecked" />
+                <label for="aa">AA 制 (自動平分)</label>
+              </div>
+              <div v-else class="pill off small">AA 關閉</div>
+            </div>
+
+            <div v-if="splitFeatureEnabled && aaChecked" class="inline">
+              <label class="field">
+                <span>每人應付</span>
+                <input type="text" :value="autoPerPersonDisplay" disabled />
+              </label>
+              <p class="muted tight">系統自動將總金額除以人數，避免算錯。</p>
+            </div>
+            <div v-else class="inline">
+              <label class="field">
+                <span>每人應付 (手動計算)</span>
+                <input type="number" min="0" step="0.01" v-model.number="form.perPerson" required />
+              </label>
+              <p class="muted tight">Toggle OFF 狀態，使用者需自行計算後輸入。</p>
+            </div>
+          </div>
+
+          <button type="submit" class="primary">加入分帳</button>
+          <p class="muted tight">假設：預設標籤可將記帳時間從 10 秒縮短至 3 秒。</p>
+        </form>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <p class="eyebrow">分帳結果</p>
+          <h2>2) 檢視「朋友該付多少」</h2>
+          <p class="muted">預設 2 人分帳，AA 制會自動計算；否則使用者需自行輸入。</p>
+        </div>
+
+        <div class="summary">
+          <div>
+            <p class="muted">總筆數</p>
+            <p class="stat-value">{{ entries.length }}</p>
+          </div>
+          <div>
+            <p class="muted">朋友應付總額</p>
+            <p class="stat-value">${{ totalFriendOwes }}</p>
+          </div>
+          <div>
+            <p class="muted">AA 使用率</p>
+            <p class="stat-value">{{ aaUsageRate }}%</p>
+          </div>
+        </div>
+
+        <ul class="entry-list" v-if="entries.length">
+          <li v-for="entry in entries" :key="entry.id" class="entry">
+            <div>
+              <p class="entry-title">{{ entry.item }}</p>
+              <p class="muted small">{{ entry.participants }} 人 · 總額 ${{ entry.total }} · 每人 ${{ entry.perPerson }}</p>
+            </div>
+            <div class="entry-meta">
+              <span class="pill" :class="entry.aa ? 'on' : 'off'">{{ entry.aa ? 'AA 自動' : '手動' }}</span>
+              <strong>朋友共付 ${{ entry.friendOwes }}</strong>
+            </div>
+          </li>
+        </ul>
+        <div v-else class="empty">
+          <p>尚未新增分帳。試著點擊預設標籤或手動輸入。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel hypotheses">
+      <div>
+        <p class="eyebrow">假設與指標</p>
+        <h2>HDD 驗證重點</h2>
+      </div>
+      <div class="hypo-grid">
+        <div class="card">
+          <p class="pill on small">Hypothesis 1</p>
+          <h3>Quick Add</h3>
+          <p class="muted">提供預設金額標籤比起純手動輸入，可將記帳完成時間由 10 秒縮短至 3 秒。</p>
+        </div>
+        <div class="card">
+          <p class="pill on small">Hypothesis 2</p>
+          <h3>One-Click Split</h3>
+          <p class="muted">自動平分核取方塊可將分帳錯誤率降至 0%，避免手動計算失誤。</p>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>簡化版專案：Vue 3 + 靜態部署。預設配合 Vercel，GitHub 公開即可。</p>
+    </footer>
+  </div>
+</body>
+</html>
