@@ -125,6 +125,7 @@ createApp({
       this.form.perPerson = null;
       this.form.participants = Math.max(this.form.participants || 2, 2);
       this.aaChecked = true;
+      this.recordMetric('hypothesis1_quick_add', { preset: preset.label, amount: preset.amount });
       this.addEntry();
     },
     async addEntry() {
@@ -172,6 +173,13 @@ createApp({
         if (aaUsed) this.aaUsageCount += 1;
         this.form.item = '';
         this.form.perPerson = null;
+        if (aaUsed) {
+          this.recordMetric('hypothesis2_auto_split', {
+            item,
+            total: Number(total.toFixed(2)),
+            participants,
+          });
+        }
       } catch (err) {
         alert('寫入紀錄失敗，請稍後再試。');
         console.error(err);
@@ -223,10 +231,25 @@ createApp({
         aa: !!row.aa,
       };
     },
+    async recordMetric(type, payload = {}) {
+      try {
+        await fetch('/api/metrics', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: this.token ? `Bearer ${this.token}` : '',
+          },
+          body: JSON.stringify({ type, payload }),
+        });
+      } catch (err) {
+        console.warn('紀錄 metric 失敗', err);
+      }
+    },
   },
   mounted() {
     if (this.token) {
       this.loadEntries();
     }
+    this.recordMetric('page_view', { path: location.pathname });
   },
 }).mount('#app');
