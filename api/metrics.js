@@ -69,9 +69,13 @@ const supabaseRequest = async (method, path, body) => {
 };
 
 module.exports = async function handler(req, res) {
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204;
+    return res.end();
+  }
   if (req.method !== 'POST') {
     res.statusCode = 405;
-    res.setHeader('Allow', 'POST');
+    res.setHeader('Allow', 'POST, OPTIONS');
     return res.end('Method Not Allowed');
   }
 

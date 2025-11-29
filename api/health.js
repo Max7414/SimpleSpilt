@@ -1,9 +1,14 @@
 const logger = require('../logger');
 
 module.exports = async function handler(req, res) {
+  // Allow preflight
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204;
+    return res.end();
+  }
   if (req.method !== 'GET') {
     res.statusCode = 405;
-    res.setHeader('Allow', 'GET');
+    res.setHeader('Allow', 'GET, OPTIONS');
     return res.end('Method Not Allowed');
   }
 
