@@ -1,5 +1,11 @@
 const crypto = require('crypto');
 
+// Ensure fetch exists (Node 18+ has global fetch; fallback to node-fetch for safety)
+const fetchFn =
+  typeof fetch === 'function'
+    ? fetch
+    : (...args) => import('node-fetch').then(({ default: f }) => f(...args));
+
 const base64urlDecode = (str) => {
   const padded = str.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(str.length / 4) * 4, '=');
   return Buffer.from(padded, 'base64').toString('utf8');
@@ -50,7 +56,7 @@ const supabaseRequest = async (method, path, body) => {
     'Content-Type': 'application/json',
     Prefer: 'return=representation',
   };
-  const res = await fetch(`${url}${path}`, {
+  const res = await fetchFn(`${url}${path}`, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
@@ -63,9 +69,13 @@ const supabaseRequest = async (method, path, body) => {
 };
 
 module.exports = async function handler(req, res) {
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204;
+    return res.end();
+  }
   if (req.method !== 'POST') {
     res.statusCode = 405;
-    res.setHeader('Allow', 'POST');
+    res.setHeader('Allow', 'POST, OPTIONS');
     return res.end('Method Not Allowed');
   }
 
