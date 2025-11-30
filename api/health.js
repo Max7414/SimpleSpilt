@@ -1,4 +1,5 @@
 const logger = require('../logger');
+const { sendAlert } = require('../utils/alert');
 
 module.exports = async function handler(req, res) {
   // Allow preflight
@@ -28,6 +29,12 @@ module.exports = async function handler(req, res) {
       memory_usage: `${memoryUsageMb} MB`,
       dependencies,
     };
+
+    if (memoryUsageMb > 200) {
+      sendAlert('warning', '⚠️ Memory RSS exceeded 200MB threshold', {
+        meta: { memory_usage_mb: memoryUsageMb, uptime_seconds: uptime },
+      });
+    }
 
     logger.info('health_check', payload);
     res.statusCode = 200;
