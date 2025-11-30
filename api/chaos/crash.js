@@ -15,10 +15,14 @@ module.exports = async function handler(req, res) {
   }
 
   logger.error('chaos_crash_invoked', { path: req.url });
-  // Fire critical alert before crashing this invocation
-  sendAlert('critical', '🚨 Critical System Failure Detected (Simulated)!', {
-    meta: { path: req.url },
-  });
+  // Fire critical alert before crashing this invocation; await to ensure it’s sent
+  try {
+    await sendAlert('critical', '🚨 Critical System Failure Detected (Simulated)!', {
+      meta: { path: req.url },
+    });
+  } catch (err) {
+    logger.error('chaos_alert_failed', { error: err.message });
+  }
 
   // Intentionally crash this invocation
   throw new Error('Critical System Failure');
