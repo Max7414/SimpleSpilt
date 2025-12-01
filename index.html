@@ -103,7 +103,38 @@
           {{ splitFeatureEnabled ? 'ON' : 'OFF' }}
         </div>
       </div>
-    </section>
+
+      <div class="toggle-row" style="border-color: #ff4444; background: rgba(255, 68, 68, 0.1);">
+        <button onclick="triggerChaos()" class="primary" style="background: #ff4444; color: white; border: none; width: 52px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer;">
+          💥
+        </button>
+        <div>
+          <p class="toggle-title" style="color: #ff4444;">Chaos Monkey · 服務崩潰測試</p>
+          <p class="toggle-desc">
+            警告：點擊左側按鈕將呼叫 <code>/api/chaos/crash</code>，導致後端暫時回傳 HTTP 500 錯誤。
+          </p>
+        </div>
+      </div>
+
+      <script>
+        async function triggerChaos() {
+          if(!confirm('⚠️ 確定要執行自爆測試嗎？\n這會導致服務暫時 500 Error！')) return;
+          
+          try {
+            const res = await fetch('/api/chaos/crash');
+            // 因為是自爆測試，預期會收到 500 錯誤
+            if (res.status === 500) {
+              alert('💥 成功！服務已崩潰 (HTTP 500)。\n請檢查你的監控警報是否響起！');
+            } else {
+              alert('❓ 測試結果不明：' + res.status);
+            }
+          } catch (err) {
+            // 如果連線直接斷開也算成功
+            alert('💥 成功！服務已崩潰 (Network Error)。\n請檢查 Log！');
+          }
+        }
+      </script>
+      </section>
 
     <section class="grid">
       <div class="panel">
