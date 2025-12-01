@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SimpleSplit</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js" defer></script>
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <div id="app" class="page">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">SimpleSplit · 不囉嗦分帳</p>
+        <h1>兩步記帳，朋友平分</h1>
+        <p class="lede">情境：一人先付，大家平分。登入後即可切換功能開關試用。</p>
+      </div>
+    </header>
+
+    <section class="panel auth">
+      <div class="panel-head">
+        <div>
+          <p class="eyebrow">Account · JWT</p>
+          <h2>登入後才能記帳與查看紀錄</h2>
+          <p class="muted">登入會呼叫後端 `/api/login` 產生簽章 JWT；需先設定環境變數 JWT_SECRET。</p>
+        </div>
+        <div class="legend">
+          <span class="pill on">已登入可記帳</span>
+          <span class="pill off">未登入僅瀏覽</span>
+        </div>
+      </div>
+
+      <div v-if="!isAuthed" class="auth-grid">
+        <form class="form" @submit.prevent="login">
+          <label class="field">
+            <span>Email</span>
+            <input type="email" v-model.trim="auth.email" placeholder="you@email.com" required />
+          </label>
+          <label class="field">
+            <span>密碼</span>
+            <input type="password" v-model.trim="auth.password" placeholder="••••••••" required />
+          </label>
+          <div class="auth-actions">
+            <button type="submit" class="primary">登入並取得 JWT</button>
+            <button type="button" class="primary ghost" @click="register">註冊並登入</button>
+          </div>
+          <p v-if="lastError" class="muted tight">錯誤：{{ lastError }}</p>
+          <p class="muted tight">註冊/登入均呼叫後端簽章，需設定 JWT_SECRET。</p>
+        </form>
+        <div class="auth-note">
+          <p class="eyebrow">為何需要登入？</p>
+          <p>確保「是誰欠錢」。登入後可寫入與查看分帳紀錄；登出即清空快取紀錄。</p>
+        </div>
+      </div>
+
+      <div v-else class="auth-state">
+        <div>
+          <p class="eyebrow">已登入</p>
+          <h3>{{ userEmail }}</h3>
+          <p class="muted">JWT 頭部：{{ tokenPreview }}</p>
+        </div>
+        <div class="auth-actions">
+          <button class="primary ghost" type="button" @click="logout">登出並清除紀錄</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel toggles">
+      <div class="panel-head">
+        <div>
+          <p class="eyebrow">Feature Toggles</p>
+          <h2>開關切換，快速對照體驗</h2>
+        </div>
+      </div>
+      <div class="toggle-row">
+        <label class="switch">
+          <input type="checkbox" v-model="quickAddEnabled" />
+          <span class="slider"></span>
+        </label>
+        <div>
+          <p class="toggle-title">Quick Add · 預設標籤</p>
+          <p class="toggle-desc">
+            ON：直接點擊「午餐 $100」、「手搖 $50」。OFF：只能手動輸入品項與金額。
+          </p>
+        </div>
+        <div class="status" :class="quickAddEnabled ? 'on' : 'off'">
+          {{ quickAddEnabled ? 'ON' : 'OFF' }}
+        </div>
+      </div>
+      <div class="toggle-row">
+        <label class="switch">
+          <input type="checkbox" v-model="splitFeatureEnabled" />
+          <span class="slider"></span>
+        </label>
+        <div>
+          <p class="toggle-title">One-Click Split · AA 制核取</p>
+          <p class="toggle-desc">
+            ON：顯示「AA制」核取方塊，勾選自動平分。OFF：使用者需自行輸入每人金額。
+          </p>
+        </div>
+        <div class="status" :class="splitFeatureEnabled ? 'on' : 'off'">
+          {{ splitFeatureEnabled ? 'ON' : 'OFF' }}
+        </div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <div class="panel-head">
+          <p class="eyebrow">快速記帳</p>
+          <h2>1) 選標籤或輸入</h2>
+          <p class="muted">填寫者視為「我」，其餘為朋友，預設兩人平分。</p>
+        </div>
+
+        <div v-if="quickAddEnabled" class="preset-row">
+          <button
+            v-for="preset in quickPresets"
+            :key="preset.label"
+            class="preset"
+            @click="usePreset(preset)"
+            :disabled="!isAuthed"
+          >
+            <span>{{ preset.emoji }} {{ preset.label }}</span>
+            <strong>${{ preset.amount }}</strong>
+          </button>
+        </div>
+
+        <form class="form" @submit.prevent="addEntry">
+          <label class="field">
+            <span>項目名稱</span>
+            <input
+              type="text"
+              v-model.trim="form.item"
+              :placeholder="quickAddEnabled ? '客製或覆寫預設標籤' : '午餐 / 飲料'"
+              required
+              :disabled="!isAuthed"
+            />
+          </label>
+          <label class="field">
+            <span>總金額 (我先付)</span>
+            <input type="number" min="0" step="0.01" v-model.number="form.total" placeholder="100" required :disabled="!isAuthed" />
+          </label>
+          <label class="field">
+            <span>人數 (含我)</span>
+            <input type="number" min="2" step="1" v-model.number="form.participants" :disabled="!isAuthed" />
+          </label>
+
+          <div class="split-block">
+            <div class="split-head">
+              <p class="eyebrow">分帳方式</p>
+              <div v-if="splitFeatureEnabled" class="aa-option">
+                <input type="checkbox" id="aa" v-model="aaChecked" :disabled="!isAuthed" />
+                <label for="aa">AA 制 (自動平分)</label>
+              </div>
+              <div v-else class="pill off small">AA 關閉</div>
+            </div>
+
+            <div v-if="splitFeatureEnabled && aaChecked" class="inline">
+              <label class="field">
+                <span>每人應付</span>
+                <input type="text" :value="autoPerPersonDisplay" disabled />
+              </label>
+              <p class="muted tight">系統自動將總金額除以人數，避免算錯。</p>
+            </div>
+            <div v-else class="inline">
+              <label class="field">
+                <span>每人應付 (手動計算)</span>
+                <input type="number" min="0" step="0.01" v-model.number="form.perPerson" required :disabled="!isAuthed" />
+              </label>
+              <p class="muted tight">Toggle OFF 狀態，使用者需自行計算後輸入。</p>
+            </div>
+          </div>
+
+          <button type="submit" class="primary" :disabled="!isAuthed">加入分帳</button>
+          <p v-if="!isAuthed" class="muted tight">請先登入以建立分帳紀錄。</p>
+          <p class="muted tight">假設：預設標籤可將記帳時間從 10 秒縮短至 3 秒。</p>
+        </form>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <p class="eyebrow">分帳結果</p>
+          <h2>2) 檢視「朋友該付多少」</h2>
+          <p class="muted">預設 2 人分帳，AA 制會自動計算；否則使用者需自行輸入。</p>
+        </div>
+
+        <div class="summary">
+          <div>
+            <p class="muted">總筆數</p>
+            <p class="stat-value">{{ entries.length }}</p>
+          </div>
+          <div>
+            <p class="muted">朋友應付總額</p>
+            <p class="stat-value">${{ totalFriendOwes }}</p>
+          </div>
+          <div>
+            <p class="muted">AA 使用率</p>
+            <p class="stat-value">{{ aaUsageRate }}%</p>
+          </div>
+        </div>
+
+        <template v-if="isAuthed">
+          <ul class="entry-list" v-if="entries.length">
+            <li v-for="entry in entries" :key="entry.id" class="entry">
+              <div>
+                <p class="entry-title">{{ entry.item }}</p>
+                <p class="muted small">{{ entry.participants }} 人 · 總額 ${{ entry.total }} · 每人 ${{ entry.perPerson }}</p>
+              </div>
+              <div class="entry-meta">
+                <span class="pill" :class="entry.aa ? 'on' : 'off'">{{ entry.aa ? 'AA 自動' : '手動' }}</span>
+                <strong>朋友共付 ${{ entry.friendOwes }}</strong>
+              </div>
+            </li>
+          </ul>
+          <div v-else class="empty">
+            <p>尚未新增分帳。試著點擊預設標籤或手動輸入。</p>
+          </div>
+        </template>
+        <div v-else class="empty">
+          <p>登入後可查看紀錄與 AA 使用率。</p>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>
